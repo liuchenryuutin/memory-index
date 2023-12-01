@@ -3,6 +3,9 @@ package org.lccy.lucene.memory.search;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.lucene.search.Query;
+import org.lccy.lucene.memory.query.funcation.CombineFunction;
+import org.lccy.lucene.memory.query.funcation.ScoreFunction;
+import org.lccy.lucene.memory.util.CollectionUtils;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -27,6 +30,11 @@ public class SearchCriteria implements Serializable {
     private List<SearchCriteria> subCriterias;
     private Query customQuery;
     private Map<String, Object> settings;
+    private ScoreFunction scoreFunction;
+    private CombineFunction combineFunction;
+    private Float functionScoreMaxBoost;
+    private Float boost;
+
     public SearchCriteria() {}
 
     public SearchCriteria(SearchOption searchOption) {
@@ -116,5 +124,17 @@ public class SearchCriteria implements Serializable {
             return type.cast(value);
         }
         return defaultVal;
+    }
+
+    public static void ignoreNull(List<SearchCriteria> criteriaList, SearchCriteria newCriteria) {
+        if (newCriteria != null) {
+            criteriaList.add(newCriteria);
+        }
+    }
+
+    public static void ignoreNull(List<SearchCriteria> criteriaList, List<SearchCriteria> newCriteriaList) {
+        if (!CollectionUtils.isEmpty(newCriteriaList)) {
+            criteriaList.addAll(newCriteriaList);
+        }
     }
 }

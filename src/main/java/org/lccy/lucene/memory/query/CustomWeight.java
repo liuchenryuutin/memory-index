@@ -1,13 +1,14 @@
 package org.lccy.lucene.memory.query;
 
+import com.carrotsearch.hppc.IntArrayList;
+import com.carrotsearch.hppc.IntIntHashMap;
+import com.carrotsearch.hppc.IntIntMap;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -45,27 +46,31 @@ public class CustomWeight<T> extends Weight {
         // 创建自定义的 Scorer 对象来执行实际的匹配逻辑
         LeafReader reader = context.reader();
         Terms terms = reader.terms(query.getField());
-        TermsEnum termsEnum = terms.iterator();
-        BytesRef term;
-        List<Integer> docIds = new ArrayList<>();
-        while ((term = termsEnum.next()) != null) {
-            String termText = term.utf8ToString();
+        IntArrayList docIds = new IntArrayList();
+        IntIntMap docIdIdxMap = new IntIntHashMap();
+        int idx = 0;
+        if(terms != null) {
+            TermsEnum termsEnum = terms.iterator();
+            BytesRef term;
+            while ((term = termsEnum.next()) != null) {
+                String termText = term.utf8ToString();
 
-            if(query.getMatcher().match(termText, query.getTerm())) {
-                PostingsEnum postingsEnum = termsEnum.postings(null, PostingsEnum.NONE);
-                int docID;
-                while ((docID = postingsEnum.nextDoc()) != PostingsEnum.NO_MORE_DOCS) {
-                    if(!docIds.contains(docID)) {
-                        docIds.add(docID);
+                if(query.getMatcher().match(termText, query.getTerm())) {
+                    PostingsEnum postingsEnum = termsEnum.postings(null, PostingsEnum.NONE);
+                    int docID;
+                    while ((docID = postingsEnum.nextDoc()) != PostingsEnum.NO_MORE_DOCS) {
+                        if(!docIdIdxMap.containsKey(docID)) {
+                            docIds.add(docID);
+                            docIdIdxMap.put(docID, idx);
+                            idx++;
+                        }
                     }
                 }
             }
         }
-        if(docIds.isEmpty()) {
-            return null;
-        }
-
-        return new CustomScorer(this, context, new CustomDocIdSetIterator(docIds), query.getMatcher(), boost);
+        CustomDocIdSetIterator docIdSetIterator = new CustomDocIdSetIterator(docIds, docIdIdxMap);
+        Scorer result = new CustomScorer(this, context, docIdSetIterator, query.getMatcher(), boost);
+        return result;
     }
 
     @Override

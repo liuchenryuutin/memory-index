@@ -2,16 +2,7 @@ package org.lccy.lucene.memory.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import org.lccy.lucene.memory.constants.FieldTypeEnum;
-import org.lccy.lucene.memory.constants.SearchCriteriaSettingKey;
-import org.lccy.lucene.memory.exception.QueryException;
-import org.lccy.lucene.memory.index.config.IndexConfig;
-import org.lccy.lucene.memory.index.dto.IndexFieldDto;
-import org.lccy.lucene.util.DateUtil;
-import org.lccy.lucene.util.StringUtil;
-import org.apache.lucene.document.DoublePoint;
-import org.apache.lucene.document.FloatPoint;
-import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -19,6 +10,14 @@ import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.QueryBuilder;
+import org.lccy.lucene.memory.constants.FieldTypeEnum;
+import org.lccy.lucene.memory.constants.SearchCriteriaSettingKey;
+import org.lccy.lucene.memory.exception.QueryException;
+import org.lccy.lucene.memory.index.config.IndexConfig;
+import org.lccy.lucene.memory.index.mapping.IndexFieldMapping;
+import org.lccy.lucene.memory.util.DateUtil;
+import org.lccy.lucene.memory.util.StringUtil;
+import org.lccy.lucene.memory.util.geo.DistanceUnit;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,7 +126,7 @@ public class SearchOption {
                     }
 
                     String value = StringUtil.conver2String(criteria.getValues().get(0));
-                    IndexFieldDto fieldConf = indexConfig.getFieldConfig(field);
+                    IndexFieldMapping fieldConf = indexConfig.getFieldConfig(field);
                     Query query;
                     try {
                         query = new QueryParser(field, fieldConf.convertSearchAnalyzer()).parse(QueryParserUtil.escape(value));
@@ -150,7 +149,7 @@ public class SearchOption {
                     }
 
                     String value = StringUtil.conver2String(criteria.getValues().get(0));
-                    IndexFieldDto fieldConf = indexConfig.getFieldConfig(field);
+                    IndexFieldMapping fieldConf = indexConfig.getFieldConfig(field);
                     QueryBuilder builder = new QueryBuilder(fieldConf.convertSearchAnalyzer());
                     return builder.createPhraseQuery(field, value);
                 })),
@@ -177,7 +176,7 @@ public class SearchOption {
                                 throw new QueryException("The field is not configured and search is not supported, field:" + field);
                             }
 
-                            IndexFieldDto fieldConf = indexConfig.getFieldConfig(field);
+                            IndexFieldMapping fieldConf = indexConfig.getFieldConfig(field);
                             BoostQuery boostQuery = new BoostQuery(new QueryParser(field, fieldConf.convertSearchAnalyzer()).parse(QueryParserUtil.escape(value)), boost);
                             multiList.add(boostQuery);
                         }
@@ -208,7 +207,7 @@ public class SearchOption {
                         throw new QueryException("The field is not configured and search is not supported, field:" + field);
                     }
                     List<Object> values = criteria.getValues();
-                    IndexFieldDto fieldConf = indexConfig.getFieldConfig(field);
+                    IndexFieldMapping fieldConf = indexConfig.getFieldConfig(field);
                     if (FieldTypeEnum.KEYWORD != fieldConf.getType() && FieldTypeEnum.TEXT != fieldConf.getType()) {
                         throw new QueryException("Only keyword | text type supports term query, field:" + field);
                     }
@@ -223,7 +222,30 @@ public class SearchOption {
 
         exists(9, true, false, false,
                 ((criteria, indexConfig) -> {
-                    throw new QueryException("Method not support");
+                    String field = criteria.getField();
+                    IndexFieldMapping fieldConf = indexConfig.getFieldConfig(field);
+                    Query query;
+                    switch (fieldConf.getType()) {
+                        case KEYWORD:
+                        case TEXT:
+                        case JSON:
+                            if (fieldConf.isDocValue()) {
+                                query = new DocValuesFieldExistsQuery(field);
+                            } else {
+                                query = new NormsFieldExistsQuery(field);
+                            }
+                            break;
+                        case DATE:
+                        case LONG:
+                        case FLOAT:
+                        case DOUBLE:
+                        case GEO_POINT:
+                            query = new DocValuesFieldExistsQuery(field);
+                            break;
+                        default:
+                            throw new QueryException("Field" + field + "not support exists query");
+                    }
+                    return query;
                 })),
 
         ids(10, false, true, true,
@@ -261,7 +283,7 @@ public class SearchOption {
                     Object upperObj = values.get(1);
                     boolean lowerInclude = criteria.getSetting(SearchCriteriaSettingKey.range_includeLower, true, boolean.class);
                     boolean upperInclude = criteria.getSetting(SearchCriteriaSettingKey.range_includeUpper, true, boolean.class);
-                    IndexFieldDto fieldConf = indexConfig.getFieldConfig(field);
+                    IndexFieldMapping fieldConf = indexConfig.getFieldConfig(field);
                     Query query = null;
                     switch (fieldConf.getType()) {
                         case KEYWORD:
@@ -272,7 +294,7 @@ public class SearchOption {
                         case DATE:
                             long lowerDate;
                             if (lowerObj != null) {
-                                lowerDate = DateUtil.converTime(StringUtil.conver2String(lowerObj), fieldConf.getFormat().split("\\|\\|"));
+                                lowerDate = DateUtil.convertTime(StringUtil.conver2String(lowerObj), fieldConf.getFormat().split("\\|\\|"));
                             } else {
                                 lowerDate = Long.MIN_VALUE;
                             }
@@ -281,7 +303,7 @@ public class SearchOption {
                             }
                             long upperDate;
                             if (upperObj != null) {
-                                upperDate = DateUtil.converTime(StringUtil.conver2String(upperObj), fieldConf.getFormat().split("\\|\\|"));
+                                upperDate = DateUtil.convertTime(StringUtil.conver2String(upperObj), fieldConf.getFormat().split("\\|\\|"));
                             } else {
                                 upperDate = Long.MAX_VALUE;
                             }
@@ -387,7 +409,29 @@ public class SearchOption {
 
         geo_distance(17, true, true, false,
                 ((criteria, indexConfig) -> {
-                    throw new QueryException("Method not implemented");
+                    String field = criteria.getField();
+                    if (!indexConfig.containsField(field)) {
+                        throw new QueryException("The field is not configured and search is not supported, field:" + field);
+                    }
+                    String value = StringUtil.conver2String(criteria.getValues().get(0));
+                    String[] vals = value.split(",");
+                    if (vals.length < 3) {
+                        throw new QueryException("geo_distance query need value, please check.");
+                    }
+                    Double lat = Double.parseDouble(vals[0].trim());
+                    Double lon = Double.parseDouble(vals[1].trim());
+                    Double meter = DistanceUnit.DEFAULT.parse(vals[2].trim(), DistanceUnit.DEFAULT);
+                    if(meter == null) {
+                        throw new QueryException("geo_distance meter setting error, example:10m");
+                    }
+
+                    // 两种方式，看哪种快，会比较Weight的cost
+                    Query query = LatLonPoint.newDistanceQuery(field, lat, lon, meter);
+                    if (indexConfig.getFieldConfig(field).isDocValue()) {
+                        Query dvQuery = LatLonDocValuesField.newSlowDistanceQuery(field, lat, lon, meter);
+                        query = new IndexOrDocValuesQuery(query, dvQuery);
+                    }
+                    return query;
                 })),
 
         geo_polygon(18, true, true, false,
@@ -405,12 +449,16 @@ public class SearchOption {
         /**
          * 连结查询 end
          */
+        function_score(24, false, false, false, null),
 
         // bool连接，子嵌套查询用
         bool(25, false, false, true, null),
 
         // 自定义查询用
-        custom(26, false, false, true, null);
+        custom(26, false, false, true, null),
+
+        // 无评分查询
+        constant_score(27, false, false, true, null);
 
         private int value;
         private boolean mustField;

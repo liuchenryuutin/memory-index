@@ -1,0 +1,94 @@
+{
+  "setting": {
+    "refreshInterval": 5000
+  },
+  "mapping": [
+    {
+      "name": "dataNo",
+      "type": "keyword",
+      "primary": true
+    },
+    {
+      "name": "itemId",
+      "type": "keyword"
+    },
+    {
+      "name": "title",
+      "type": "text",
+      "analyzer": "ik_max_word"
+    },
+    {
+      "name": "titleFullPy",
+      "type": "text",
+      "analyzer": "ik_smart_full_word"
+    },
+    {
+      "name": "titleSimPy",
+      "type": "text",
+      "analyzer": "ik_smart_simple_word"
+    },
+    {
+      "name": "titleStandardPy",
+      "type": "text",
+      "analyzer": "standard_full_word"
+    },
+    {
+      "name": "titleSuggestFullPy",
+      "type": "text",
+      "analyzer": "edge_ngram_full_word"
+    },
+    {
+      "name": "titleSuggestSimPy",
+      "type": "text",
+      "analyzer": "edge_ngram_simple_word",
+      "searchAnalyzer": "standard_full_word"
+    },
+    {
+      "name": "atomTag",
+      "type": "text",
+      "analyzer": "douhao_punct"
+    },
+    {
+      "name": "atomTagFullPy",
+      "type": "text",
+      "analyzer": "douhao_full_word"
+    },
+    {
+      "name": "atomTagSimPy",
+      "type": "text",
+      "analyzer": "douhao_simple_word"
+    },
+    {
+      "name": "startTime",
+      "type": "date",
+      "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd"
+    },
+    {
+      "name": "shieldInfo",
+      "type": "json"
+    },
+    {
+      "name": "location",
+      "type": "geo_point"
+    },
+    {
+      "name": "exposure",
+      "type": "long"
+    },
+    {
+      "name": "systemId",
+      "type": "keyword",
+      "docValue": false,
+      "store": false
+    },
+    {
+      "name": "click",
+      "type": "float"
+    },
+    {
+      "name": "dataType",
+      "type": "text",
+      "analyzer": "douhao"
+    }
+  ]
+}

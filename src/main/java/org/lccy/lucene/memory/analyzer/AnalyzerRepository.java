@@ -1,10 +1,9 @@
 package org.lccy.lucene.memory.analyzer;
 
-import org.lccy.lucene.memory.exception.LuceneException;
-import org.lccy.lucene.util.StringUtil;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.analysis.core.LowerCaseFilterFactory;
+import org.apache.lucene.analysis.core.WhitespaceTokenizerFactory;
 import org.apache.lucene.analysis.pattern.PatternReplaceCharFilterFactory;
 import org.apache.lucene.analysis.pattern.PatternTokenizerFactory;
 import org.apache.lucene.analysis.standard.StandardTokenizerFactory;
@@ -12,8 +11,12 @@ import org.apache.lucene.analysis.util.CharFilterFactory;
 import org.apache.lucene.analysis.util.TokenFilterFactory;
 import org.apache.lucene.analysis.util.TokenizerFactory;
 import org.elasticsearch.analysis.PinyinConfig;
+import org.lccy.lucene.memory.exception.LuceneException;
+import org.lccy.lucene.memory.util.StringUtil;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -59,6 +62,12 @@ public final class AnalyzerRepository {
         douhaoSetting.put(PatternTokenizerFactory.GROUP, "-1");
 
         TokenizerFactory douhaoTokenizerFactory = new PatternTokenizerFactory(douhaoSetting);
+
+        List<String> tokenChars = Arrays.asList("letter", "digit");
+        EdgeNGramTokenizerFactory edgeNGramTokenizerFactory = new EdgeNGramTokenizerFactory(1, 50, tokenChars);
+
+        WhitespaceTokenizerFactory whitespaceTokenizerFactory = new WhitespaceTokenizerFactory(new HashMap<>());
+
 
         // TokenFilter
         TokenFilterFactory lowerCaseFilterFactory = new LowerCaseFilterFactory(new HashMap<>());
@@ -112,6 +121,26 @@ public final class AnalyzerRepository {
         pinyinDouhaoSimpFilterConfig.keepOriginal = false;
         TokenFilterFactory pinyinDouhaoSimpFilterFactory = new PinyinTokenFilterFactory(pinyinDouhaoSimpFilterConfig);
 
+        PinyinConfig pinyinNgramSimpleFilterConfig = new PinyinConfig();
+        pinyinNgramSimpleFilterConfig.keepFirstLetter = true;
+        pinyinNgramSimpleFilterConfig.keepFullPinyin = false;
+        pinyinNgramSimpleFilterConfig.noneChinesePinyinTokenize = false;
+        pinyinNgramSimpleFilterConfig.keepOriginal = false;
+        pinyinNgramSimpleFilterConfig.LimitFirstLetterLength = 50;
+        pinyinNgramSimpleFilterConfig.keepNoneChinese = true;
+        pinyinNgramSimpleFilterConfig.keepNoneChineseTogether = true;
+        TokenFilterFactory pinyinNgramSimpleFilterFactory = new PinyinTokenFilterFactory(pinyinNgramSimpleFilterConfig);
+
+        PinyinConfig pinyinNgramFullFilterConfig = new PinyinConfig();
+        pinyinNgramFullFilterConfig.keepFirstLetter = false;
+        pinyinNgramFullFilterConfig.LimitFirstLetterLength = 50;
+        pinyinNgramFullFilterConfig.keepFullPinyin = false;
+        pinyinNgramFullFilterConfig.keepJoinedFullPinyin = true;
+        pinyinNgramFullFilterConfig.noneChinesePinyinTokenize = false;
+        pinyinNgramFullFilterConfig.keepNoneChineseInJoinedFullPinyin = true;
+        pinyinNgramFullFilterConfig.keepOriginal = false;
+        TokenFilterFactory pinyinNgramFullFilterFactory = new PinyinTokenFilterFactory(pinyinNgramFullFilterConfig);
+
         CustomAnalyzer ikMaxWord = new CustomAnalyzer(charFilters, ikMaxWordFactory, null);
         CustomAnalyzer ikSmartWord = new CustomAnalyzer(charFilters, ikSmartWordFactory, null);
         CustomAnalyzer ikSmartSimplePinyin = new CustomAnalyzer(charFilters, ikSmartWordFactory, new TokenFilterFactory[]{pinyinSimpleFilterFactory, lowerCaseFilterFactory});
@@ -121,16 +150,29 @@ public final class AnalyzerRepository {
         CustomAnalyzer douhaoPunct = new CustomAnalyzer(douhaoCharFilters, douhaoPunctTokenizerFactory, null);
         CustomAnalyzer douhaoFullPy = new CustomAnalyzer(douhaoCharFilters, douhaoPunctTokenizerFactory, new TokenFilterFactory[]{pinyinDouhaoFullFilterFactory, lowerCaseFilterFactory});
         CustomAnalyzer douhaoSimplePy = new CustomAnalyzer(douhaoCharFilters, douhaoPunctTokenizerFactory, new TokenFilterFactory[]{pinyinDouhaoSimpFilterFactory, lowerCaseFilterFactory});
+        CustomAnalyzer edgeNgramWord = new CustomAnalyzer(charFilters, edgeNGramTokenizerFactory, new TokenFilterFactory[]{lowerCaseFilterFactory});
+        CustomAnalyzer edgeNgramSimplePinyin = new CustomAnalyzer(charFilters, edgeNGramTokenizerFactory, new TokenFilterFactory[]{pinyinNgramSimpleFilterFactory, lowerCaseFilterFactory});
+        CustomAnalyzer edgeNgramFullPinyin = new CustomAnalyzer(charFilters, edgeNGramTokenizerFactory, new TokenFilterFactory[]{pinyinNgramFullFilterFactory, lowerCaseFilterFactory});
+        CustomAnalyzer whitespace = new CustomAnalyzer(charFilters, whitespaceTokenizerFactory, new TokenFilterFactory[]{lowerCaseFilterFactory});
+        CustomAnalyzer whitespaceSimplePinyin = new CustomAnalyzer(charFilters, whitespaceTokenizerFactory, new TokenFilterFactory[]{pinyinNgramSimpleFilterFactory, lowerCaseFilterFactory});
+        CustomAnalyzer whitespaceFullPinyin = new CustomAnalyzer(charFilters, whitespaceTokenizerFactory, new TokenFilterFactory[]{pinyinNgramFullFilterFactory, lowerCaseFilterFactory});
+
 
         analyzerMap.put("ik_max_word", ikMaxWord);
-        analyzerMap.put("ik_smart", ikSmartWord);
+        analyzerMap.put("ik_smart_word", ikSmartWord);
         analyzerMap.put("ik_smart_simple_word", ikSmartSimplePinyin);
         analyzerMap.put("ik_smart_full_word", ikSmartFullPinyin);
-        analyzerMap.put("kms_standard_full_word", standardFullWord);
+        analyzerMap.put("standard_full_word", standardFullWord);
         analyzerMap.put("douhao", douhao);
         analyzerMap.put("douhao_punct", douhaoPunct);
-        analyzerMap.put("douhao_full_py", douhaoFullPy);
-        analyzerMap.put("douhao_simple_py", douhaoSimplePy);
+        analyzerMap.put("douhao_full_word", douhaoFullPy);
+        analyzerMap.put("douhao_simple_word", douhaoSimplePy);
+        analyzerMap.put("edge_ngram_word", edgeNgramWord);
+        analyzerMap.put("edge_ngram_simple_word", edgeNgramSimplePinyin);
+        analyzerMap.put("edge_ngram_full_word", edgeNgramFullPinyin);
+        analyzerMap.put("whitespace", whitespace);
+        analyzerMap.put("whitespace_simple_word", whitespaceSimplePinyin);
+        analyzerMap.put("whitespace_full_word", whitespaceFullPinyin);
     }
 
     /**

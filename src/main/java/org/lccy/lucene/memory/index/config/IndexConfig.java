@@ -1,10 +1,11 @@
 package org.lccy.lucene.memory.index.config;
 
-import org.lccy.lucene.memory.constants.FieldTypeEnum;
-import org.lccy.lucene.memory.index.dto.IndexFieldDto;
-import org.lccy.lucene.memory.index.dto.IndexSettingDto;
-import org.lccy.lucene.util.StringUtil;
 import org.apache.lucene.analysis.Analyzer;
+import org.lccy.lucene.memory.constants.Constants;
+import org.lccy.lucene.memory.constants.FieldTypeEnum;
+import org.lccy.lucene.memory.index.mapping.IndexFieldMapping;
+import org.lccy.lucene.memory.index.mapping.IndexSettingMapping;
+import org.lccy.lucene.memory.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,20 +24,27 @@ public class IndexConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(IndexConfig.class);
 
-    protected Map<String, IndexFieldDto> fieldConfigMap;
-    protected IndexSettingDto indexSetting;
-    protected IndexFieldDto primaryField;
-    protected IndexFieldDto defaultField;
+    protected Map<String, IndexFieldMapping> fieldConfigMap;
+    protected IndexSettingMapping indexSetting;
+    protected IndexFieldMapping primaryField;
+    protected IndexFieldMapping defaultField;
 
     public IndexConfig() {
-        this.defaultField = new IndexFieldDto(null, false, FieldTypeEnum.STORE, null, null, null, false);
+        this.defaultField = new IndexFieldMapping(null, false, FieldTypeEnum.STORE, null, null, null, false, true, true);
     }
 
-    public IndexConfig(IndexSettingDto indexSetting, List<IndexFieldDto> fieldConfigs) {
-        this();
+    /**
+     * 初始化索引信息
+     * @param indexSetting 索引设置
+     * @param fieldMappings 字段映射
+     */
+    public void init(IndexSettingMapping indexSetting, List<IndexFieldMapping> fieldMappings) {
         this.indexSetting = indexSetting;
         this.fieldConfigMap = new ConcurrentHashMap<>();
-        for (IndexFieldDto field : fieldConfigs) {
+        for (IndexFieldMapping field : fieldMappings) {
+            if(FieldTypeEnum.KEYWORD == field.getType()) {
+                field.setDocValue(true);
+            }
             fieldConfigMap.put(field.getName(), field);
             if (field.isPrimary()) {
                 this.primaryField = field;
@@ -71,8 +79,8 @@ public class IndexConfig {
      * @param fieldName
      * @return
      */
-    public IndexFieldDto getFieldConfig(String fieldName) {
-        IndexFieldDto result = fieldConfigMap.get(fieldName);
+    public IndexFieldMapping getFieldConfig(String fieldName) {
+        IndexFieldMapping result = fieldConfigMap.get(fieldName);
         if (result == null) {
             result = defaultField;
         }
@@ -88,7 +96,7 @@ public class IndexConfig {
      *
      * @return
      */
-    public IndexFieldDto getPrimaryField() {
+    public IndexFieldMapping getPrimaryField() {
         return primaryField;
     }
 
@@ -97,7 +105,16 @@ public class IndexConfig {
      *
      * @return
      */
-    public IndexSettingDto getIndexSetting() {
+    public IndexSettingMapping getIndexSetting() {
         return indexSetting;
+    }
+
+    /**
+     * 是否是系统预留字段
+     * @param fieldName
+     * @return
+     */
+    public boolean isSystemKeyword(String fieldName) {
+        return Constants._ID.equals(fieldName) || Constants._SCORE.equals(fieldName);
     }
 }
