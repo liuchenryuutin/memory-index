@@ -288,7 +288,7 @@ public class SearchOption {
                     switch (fieldConf.getType()) {
                         case KEYWORD:
                             BytesRef lowerByte = lowerObj == null ? null : new BytesRef(StringUtil.conver2String(lowerObj));
-                            BytesRef upperByte = lowerObj == null ? null : new BytesRef(StringUtil.conver2String(upperObj));
+                            BytesRef upperByte = upperObj == null ? null : new BytesRef(StringUtil.conver2String(upperObj));
                             query = new TermRangeQuery(field, lowerByte, upperByte, lowerInclude, upperInclude);
                             break;
                         case DATE:
