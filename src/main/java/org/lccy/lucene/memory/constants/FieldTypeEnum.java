@@ -24,9 +24,11 @@ public enum FieldTypeEnum {
         if (value instanceof List) {
             List<Object> valList = (List<Object>) value;
             for (Object val : valList) {
-                document.add(new StringField(fieldName, StringUtil.conver2String(val), store));
-                if (fieldConfig.isDocValue()) {
-                    document.add(new SortedSetDocValuesField(fieldName, new BytesRef(StringUtil.conver2String(val))));
+                if(val != null) {
+                    document.add(new StringField(fieldName, StringUtil.conver2String(val), store));
+                    if (fieldConfig.isDocValue()) {
+                        document.add(new SortedSetDocValuesField(fieldName, new BytesRef(StringUtil.conver2String(val))));
+                    }
                 }
             }
         } else {
@@ -81,7 +83,9 @@ public enum FieldTypeEnum {
         if (value instanceof List) {
             List<Object> valList = (List<Object>) value;
             for (Object val : valList) {
-                document.add(new StoredField(fieldName, StringUtil.conver2String(val)));
+                if(val != null) {
+                    document.add(new StoredField(fieldName, StringUtil.conver2String(val)));
+                }
             }
         } else {
             document.add(new StoredField(fieldName, StringUtil.conver2String(value)));
