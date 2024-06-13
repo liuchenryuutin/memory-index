@@ -5,6 +5,7 @@ import com.carrotsearch.hppc.IntIntMap;
 import org.apache.lucene.search.DocIdSetIterator;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * 基于List构造一个docId迭代器
@@ -14,24 +15,25 @@ import java.io.IOException;
  */
 public class CustomDocIdSetIterator extends DocIdSetIterator {
 
-    private IntArrayList docIds;
-    private IntIntMap docIdIdxMap;
+    private int[] docIds;
+    private int length;
     private int idx;
 
-    public CustomDocIdSetIterator(IntArrayList docIds, IntIntMap docIdIdxMap) {
+    public CustomDocIdSetIterator(IntArrayList docIdList, IntIntMap docIdIdxMap) {
         this.idx = -1;
-        this.docIds = docIds;
-        this.docIdIdxMap = docIdIdxMap;
+        this.docIds = docIdList.toArray();
+        this.length = docIds.length;
+        Arrays.sort(this.docIds);
     }
 
     @Override
     public int docID() {
         if (idx == -1) {
             return -1;
-        } else if (idx >= docIds.size()) {
+        } else if (idx >= length) {
             return NO_MORE_DOCS;
         } else {
-            return docIds.get(idx);
+            return docIds[idx];
         }
     }
 
@@ -43,12 +45,15 @@ public class CustomDocIdSetIterator extends DocIdSetIterator {
 
     @Override
     public int advance(int target) throws IOException {
-        this.idx = docIdIdxMap.getOrDefault(target, 0);
-        return docID();
+        int doc = docID();
+        while (doc < target) {
+            doc = nextDoc();
+        }
+        return doc;
     }
 
     @Override
     public long cost() {
-        return docIds.size();
+        return length;
     }
 }
