@@ -60,7 +60,7 @@ public final class SearchHitsBuilder {
             result.setSortFields(sortFields);
         }
 
-        float maxScore = 0.0f;
+        float maxScore = Float.NEGATIVE_INFINITY;
         int i;
         List<String> include = request.getInclude();
         Map<String, Integer> exclude = CollectionUtils.isEmpty(request.getExclude()) ? null : request.getExclude().stream().collect(Collectors.toMap(x -> x, x -> 1));
@@ -172,7 +172,7 @@ public final class SearchHitsBuilder {
             }
             result.setSortFields(sortFields);
         }
-        float maxScore = 0.0f;
+        float maxScore = Float.NEGATIVE_INFINITY;
 
         List<String> include = topHitsAggsConfig.getInclude();
         Map<String, Integer> exclude = CollectionUtils.isEmpty(topHitsAggsConfig.getExclude()) ? null : topHitsAggsConfig.getExclude().stream().collect(java.util.stream.Collectors.toMap(x -> x, x -> 1));
